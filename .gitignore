@@ -1,17 +1,49 @@
-# Secrets & environment
+# Environment / secrets
 .env
+.env.local
+**/.env
+**/.env.local
 *.pem
 *.key
 secrets/
 
-# Database volumes (Docker compose named volumes)
-pgdata/
+# Node / JS
+node_modules/
+**/node_modules/
+.next/
+**/.next/
+out/
+**/out/
+dist/
+**/dist/
+build/
+**/build/
+.turbo/
+**/.turbo/
+.cache/
+**/.cache/
+coverage/
+**/coverage/
+*.tsbuildinfo
 
-# Logs
-*.log
-logs/
+# Tauri / app artifacts
+.vercel/
+**/.vercel/
+.clerk/
+**/.clerk/
+test-results/
+**/test-results/
+backups/
+**/backups/
+.pi/
+**/.pi/
 
-# IDE / OS
+# Go / Rust / Python build output
+**/target/
+__pycache__/
+*.pyc
+
+# OS / editor
 .DS_Store
 Thumbs.db
 .vscode/
@@ -19,13 +51,9 @@ Thumbs.db
 *.swp
 *.swo
 
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.egg-info/
-.venv/
-venv/
-
-# Node
-node_modules/
+# Logs
+*.log
+logs/
+.archon/logs/
+.archon/artifacts/
+.archon/workspaces/

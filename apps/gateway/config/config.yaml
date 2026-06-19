@@ -1,0 +1,155 @@
+# Flow Gateway — LiteLLM Proxy Configuration
+#
+# This file defines the model registry, upstream provider mappings,
+# routing behaviour, and general server settings.
+#
+# Environment variables are substituted at runtime by LiteLLM.
+#
+# Upstream strategy:
+#   Primary working:   Fireworks AI + DeepInfra
+#   Tertiary/bench:    Makora (sold-out risk, fallback only)
+#   Disabled (topped up): DeepSeek direct, OpenRouter
+#   Near-term lane:    Self-hosted vLLM
+#   See docs/service-strategy.md for details.
+
+model_list:
+  # ═══════════════════════════════════════════════════════════════
+  # PRIMARY WORKING UPSTREAMS
+  # ═══════════════════════════════════════════════════════════════
+
+  # ── Fireworks AI (primary for Flash-class models) ────────────
+  - model_name: flow/deepseek-v4-flash
+    litellm_params:
+      model: openai/accounts/fireworks/models/deepseek-v4-flash
+      api_base: https://api.fireworks.ai/inference/v1
+      api_key: os.environ/FIREWORKS_API_KEY
+      rpm: 1000
+    model_info:
+      mode: chat
+      supports_function_calling: true
+
+  # ── DeepInfra (primary for Llama / first fallback for Flash) ─
+  - model_name: flow/deepseek-v4-flash-deepinfra
+    litellm_params:
+      model: openai/deepseek-ai/DeepSeek-V4-Flash
+      api_base: https://api.deepinfra.com/v1/openai
+      api_key: os.environ/DEEPINFRA_API_KEY
+      rpm: 500
+    model_info:
+      mode: chat
+      supports_function_calling: true
+
+  - model_name: flow/deepinfra-default
+    litellm_params:
+      model: openai/meta-llama/Llama-3.3-70B-Instruct-Turbo
+      api_base: https://api.deepinfra.com/v1/openai
+      api_key: os.environ/DEEPINFRA_API_KEY
+      rpm: 200
+    model_info:
+      mode: chat
+      supports_function_calling: true
+
+  # ═══════════════════════════════════════════════════════════════
+  # TERTIARY / BENCHMARK
+  # ═══════════════════════════════════════════════════════════════
+
+  # ── Makora (tertiary fallback / benchmark target) ────────────
+  # ⚠ Sold-out risk — do not rely on for production traffic.
+  - model_name: flow/deepseek-v4-flash-makora
+    litellm_params:
+      model: openai/makora-default
+      api_base: https://inference.makora.com/v1
+      api_key: os.environ/MAKORA_API_KEY
+      rpm: 100
+    model_info:
+      mode: chat
+      supports_function_calling: true
+      description: "Makora tertiary fallback — sold-out risk"
+
+  - model_name: flow/makora-default
+    litellm_params:
+      model: openai/makora-default
+      api_base: https://inference.makora.com/v1
+      api_key: os.environ/MAKORA_API_KEY
+      rpm: 100
+    model_info:
+      mode: chat
+      supports_function_calling: true
+      description: "Makora benchmark — sold-out risk"
+
+  # ═══════════════════════════════════════════════════════════════
+  # DISABLED UNTIL TOPPED UP (kept commented for reference)
+  # ═══════════════════════════════════════════════════════════════
+
+  # ── DeepSeek direct (disabled — no credit) ──────────────────
+  # - model_name: flow/deepseek-v4-flash
+  #   litellm_params:
+  #     model: openai/deepseek-chat
+  #     api_base: https://api.deepseek.com/v1
+  #     api_key: os.environ/DEEPSEEK_API_KEY
+  #     rpm: 500
+  #   model_info:
+  #     mode: chat
+  #     supports_function_calling: true
+
+  # - model_name: flow/deepseek-v4-pro
+  #   litellm_params:
+  #     model: openai/deepseek-reasoner
+  #     api_base: https://api.deepseek.com/v1
+  #     api_key: os.environ/DEEPSEEK_API_KEY
+  #     rpm: 500
+  #   model_info:
+  #     mode: chat
+  #     supports_function_calling: true
+
+  # ── OpenRouter (disabled — no credit) ──────────────────────
+  # - model_name: flow/llama-3.3-70b
+  #   litellm_params:
+  #     model: openai/meta-llama/llama-3.3-70b-instruct
+  #     api_base: https://openrouter.ai/api/v1
+  #     api_key: os.environ/OPENROUTER_API_KEY
+  #     rpm: 200
+  #   model_info:
+  #     mode: chat
+  #     supports_function_calling: true
+
+  # ═══════════════════════════════════════════════════════════════
+  # NEAR-TERM LANE: SELF-HOSTED vLLM
+  # ═══════════════════════════════════════════════════════════════
+
+  # Uncomment when self-hosted capacity is deployed.
+  # - model_name: flow/self-hosted-vllm
+  #   litellm_params:
+  #     model: openai/self-hosted-model
+  #     api_base: http://vllm-server:8000/v1
+  #     api_key: os.environ/SELF_HOSTED_API_KEY
+  #     rpm: 100
+  #   model_info:
+  #     mode: chat
+
+router_settings:
+  routing_strategy: "usage-based"
+  allowed_fails: 3
+  num_retries: 2
+  retry_after: 5
+  fallbacks:
+    # flow/deepseek-v4-flash (Fireworks) → DeepInfra → Makora
+    - flow/deepseek-v4-flash:
+        [flow/deepseek-v4-flash-deepinfra, flow/deepseek-v4-flash-makora]
+    # DeepInfra general → Makora
+    - flow/deepinfra-default: [flow/makora-default]
+  cooldown_time: 30
+  enable_pre_call_checks: true
+
+general_settings:
+  master_key: os.environ/FLOW_MASTER_KEY
+  database_url: os.environ/DATABASE_URL
+  otel: false
+  max_request_size_mb: 100
+  # ssl_cert_path: /app/certs/cert.pem       # future
+  allowed_routes:
+    - /health
+    - /v1/models
+    - /v1/chat/completions
+    - /v1/completions
+    - /v1/embeddings

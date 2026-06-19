@@ -1,0 +1,33 @@
+# clerk configuration (can include secrets)
+/.clerk/
+
+# vercel output
+.vercel
+
+# environment files
+.env
+.env.*
+!.env.example
+
+# logs
+*.log
+npm-debug.log*
+
+# next.js
+.next/
+
+# backups
+/backups/
+
+# test artifacts
+test-results/
+test-results.json
+tsconfig.tsbuildinfo
+
+# build output
+/out/
+
+# tauri build artifacts
+/src-tauri/target/
+/src-tauri/gen/
+

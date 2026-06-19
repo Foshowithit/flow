@@ -1,0 +1,12 @@
+{
+	"identifier": "default",
+	"description": "Default capabilities for Flow Desktop",
+	"windows": ["main"],
+	"permissions": [
+		"core:default",
+		"shell:allow-open",
+		"dialog:default",
+		"notification:default",
+		"global-shortcut:default"
+	]
+}

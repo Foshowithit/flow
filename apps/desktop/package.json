@@ -1,0 +1,50 @@
+{
+  "name": "flow-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "migrate": "npx tsx scripts/migrate.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . --max-warnings=100",
+    "smoke": "node scripts/smoke.mjs",
+    "backup:neon": "node scripts/backup-neon.mjs"
+  },
+  "dependencies": {
+    "@clerk/nextjs": "^7.4.2",
+    "@clerk/themes": "^2.4.57",
+    "@neondatabase/serverless": "^1.1.0",
+    "@tauri-apps/api": "^2.11.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.17.0",
+    "next": "^15.3.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "stripe": "^22.2.0",
+    "svix": "^1.95.1",
+    "tailwind-merge": "^3.6.0"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.5",
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.60.0",
+    "@tailwindcss/postcss": "^4.3.0",
+    "@tauri-apps/cli": "^2.11.2",
+    "@types/node": "^22.15.3",
+    "@types/react": "^19.1.2",
+    "@types/react-dom": "^19.1.2",
+    "@typescript-eslint/eslint-plugin": "^8.61.0",
+    "@typescript-eslint/parser": "^8.61.0",
+    "eslint": "^10.5.0",
+    "eslint-config-next": "^16.2.9",
+    "globals": "^17.6.0",
+    "postcss": "^8.5.15",
+    "tailwindcss": "^4.3.0",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.3"
+  }
+}

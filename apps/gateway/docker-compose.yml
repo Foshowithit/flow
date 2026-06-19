@@ -1,0 +1,53 @@
+# docker-compose.yml — Flow Gateway stack
+
+services:
+  flow-gateway:
+    image: ghcr.io/berriai/litellm:main-latest
+    container_name: flow-gateway
+    ports:
+      - "4000:4000"
+    env_file:
+      - .env
+    environment:
+      - LITELLM_CONFIG_PATH=/app/config/config.yaml
+      - DATABASE_URL=${DATABASE_URL:-postgresql://flow:flow@flow-postgres:5432/flow}
+      - FLOW_MASTER_KEY=${FLOW_MASTER_KEY}
+      - FLOW_SALT_KEY=${FLOW_SALT_KEY}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - MAKORA_API_KEY=${MAKORA_API_KEY}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - DEEPINFRA_API_KEY=${DEEPINFRA_API_KEY}
+      - FIREWORKS_API_KEY=${FIREWORKS_API_KEY}
+    volumes:
+      - ./config:/app/config:ro
+    depends_on:
+      flow-postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+
+  flow-postgres:
+    image: postgres:16-alpine
+    container_name: flow-postgres
+    environment:
+      POSTGRES_USER: flow
+      POSTGRES_PASSWORD: flow
+      POSTGRES_DB: flow
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flow -d flow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  pgdata:
