@@ -31,7 +31,7 @@ export default function RightPanel({
 	return (
 		<aside
 			className={cn(
-				"flex flex-col h-full bg-[#212121] border-l border-border",
+				"flex flex-col h-full bg-surface border-l border-border",
 				!open && "hidden",
 			)}
 		>

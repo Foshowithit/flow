@@ -117,7 +117,7 @@ export default function DesktopSidebar({
 	return (
 		<aside
 			className={cn(
-				"flex flex-col h-full bg-[#212121] border-r border-border",
+				"flex flex-col h-full bg-surface border-r border-border",
 				!open && "hidden",
 			)}
 		>
