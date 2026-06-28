@@ -1,0 +1,15 @@
+name: Security issue
+description: Report a security concern privately
+labels: [security]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: Avoid including secrets; describe the risk only.
