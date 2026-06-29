@@ -26,6 +26,3 @@ tauri-plugin-dialog = "2"
 tauri-plugin-notification = "2"
 tauri-plugin-global-shortcut = "2"
 uuid = { version = "1", features = ["v4"] }
-
-[patch.crates-io]
-alloc-no-stdlib = { path = "/Users/adam26/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/alloc-no-stdlib-2.0.4" }
