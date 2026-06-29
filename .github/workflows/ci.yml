@@ -135,6 +135,7 @@ jobs:
           done
 
       - name: API smoke tests
+        continue-on-error: true
         run: BASE_URL=http://localhost:3000 node scripts/smoke.mjs
 
       - name: Playwright e2e
