@@ -1,5 +1,0 @@
-# Flow — Archon repo config
-worktree:
-  baseBranch: main
-  copyFiles:
-    - apps/desktop/.env
