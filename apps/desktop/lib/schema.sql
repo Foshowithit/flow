@@ -54,21 +54,6 @@ CREATE TABLE IF NOT EXISTS api_keys (
 
 CREATE INDEX IF NOT EXISTS idx_api_keys_user_id ON api_keys (user_id);
 
--- ─── Usage Records ──────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS usage_records (
-  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  session_id UUID REFERENCES chat_sessions(id) ON DELETE SET NULL,
-  model      TEXT NOT NULL,
-  tokens_in  INTEGER NOT NULL DEFAULT 0,
-  tokens_out INTEGER NOT NULL DEFAULT 0,
-  cost_cents INTEGER NOT NULL DEFAULT 0,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE INDEX IF NOT EXISTS idx_usage_records_user_id ON usage_records (user_id);
-CREATE INDEX IF NOT EXISTS idx_usage_records_created_at ON usage_records (created_at);
-
 -- ─── Chat Sessions ──────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS chat_sessions (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -101,6 +86,23 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 );
 
 CREATE INDEX IF NOT EXISTS idx_chat_messages_session_id ON chat_messages (session_id);
+
+
+-- ─── Usage Records ──────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS usage_records (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  session_id UUID REFERENCES chat_sessions(id) ON DELETE SET NULL,
+  model      TEXT NOT NULL,
+  tokens_in  INTEGER NOT NULL DEFAULT 0,
+  tokens_out INTEGER NOT NULL DEFAULT 0,
+  cost_cents INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_usage_records_user_id ON usage_records (user_id);
+CREATE INDEX IF NOT EXISTS idx_usage_records_created_at ON usage_records (created_at);
+
 
 -- ─── Waitlist Signups ───────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS waitlist (
