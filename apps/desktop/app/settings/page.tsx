@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth, useUser, SignInButton } from "@clerk/nextjs";
+import { useUser, SignInButton } from "@clerk/nextjs";
 import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,46 @@ export default function SettingsPage() {
 		"idle" | "confirming" | "loading" | "success" | "error"
 	>("idle");
 	const [deleteResult, setDeleteResult] = useState<string>("");
+
+	// ── Memory state ───────────────────────────────────────────────────
+	const [extractionEnabled, setExtractionEnabled] = useState(() => {
+		if (typeof window === "undefined") return true;
+		try {
+			return localStorage.getItem("flow_auto_extraction") !== "false";
+		} catch {
+			return true;
+		}
+	});
+	const [memDeleteConfirm, setMemDeleteConfirm] = useState(false);
+	const [memDeleting, setMemDeleting] = useState(false);
+	const [memDeleteSuccess, setMemDeleteSuccess] = useState(false);
+
+	const handleDeleteAllMemories = useCallback(async () => {
+		setMemDeleting(true);
+		try {
+			// Delete all memory facts by fetching them and deleting each one
+			const res = await fetch("/api/memory/facts?limit=100&offset=0");
+			if (!res.ok) throw new Error("Failed to load memory facts");
+			const data = await res.json();
+			const facts: Array<{ id: string }> = data.facts || [];
+			let deleted = 0;
+			for (const fact of facts) {
+				const delRes = await fetch(`/api/memory/facts/${fact.id}`, {
+					method: "DELETE",
+				});
+				if (delRes.ok) deleted++;
+			}
+			setMemDeleteConfirm(false);
+			setMemDeleteSuccess(true);
+			// Reset after 3 seconds
+			setTimeout(() => {
+				setMemDeleteSuccess(false);
+			}, 3000);
+		} catch {
+			// Keep confirming state so user can retry
+			setMemDeleting(false);
+		}
+	}, []);
 
 	// ── Custom Instructions state ───────────────────────────────────
 	const [aboutYou, setAboutYou] = useState("");
@@ -375,6 +415,102 @@ export default function SettingsPage() {
 								{instructionsError || "Failed to save."}
 							</span>
 						)}
+					</div>
+				</section>
+
+				{/* Memory Section */}
+				<section className="rounded-2xl border border-border bg-surface p-6">
+					<h2 className="text-base font-semibold tracking-tight text-text-primary mb-4">
+						Memory
+					</h2>
+					<div className="space-y-4">
+						{/* Auto-extraction toggle */}
+						<div className="flex items-center justify-between gap-4">
+							<div>
+								<p className="text-sm font-medium text-text-primary">
+									Automatic memory extraction
+								</p>
+								<p className="text-xs text-text-tertiary mt-0.5">
+									Flow will automatically extract facts and preferences from
+									your conversations.
+								</p>
+							</div>
+							<label className="relative inline-flex items-center cursor-pointer">
+								<input
+									type="checkbox"
+									checked={extractionEnabled}
+									onChange={(e) => {
+										setExtractionEnabled(e.target.checked);
+										localStorage.setItem(
+											"flow_auto_extraction",
+											e.target.checked ? "true" : "false",
+										);
+									}}
+									className="sr-only peer"
+								/>
+								<div className="w-9 h-5 bg-surface-hover rounded-full peer peer-checked:bg-accent peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
+							</label>
+						</div>
+
+						{/* Manage memories link */}
+						<div className="flex items-center justify-between gap-4 pt-2 border-t border-border-light">
+							<div>
+								<p className="text-sm font-medium text-text-primary">
+									Manage memories
+								</p>
+								<p className="text-xs text-text-tertiary mt-0.5">
+									View and edit your memory facts and session summaries.
+								</p>
+							</div>
+							<Link
+								href="/memory"
+								className="inline-flex items-center justify-center h-8 px-3 rounded-lg bg-accent/10 border border-accent/20 text-xs font-medium text-accent hover:bg-accent/20 transition-colors shrink-0"
+							>
+								View memory
+							</Link>
+						</div>
+
+						{/* Delete all memories */}
+						<div className="flex items-center justify-between gap-4 pt-2 border-t border-border-light">
+							<div>
+								<p className="text-sm font-medium text-text-primary">
+									Delete all memories
+								</p>
+								<p className="text-xs text-text-tertiary mt-0.5">
+									Permanently delete all memory facts. Session summaries are not
+									affected.
+								</p>
+							</div>
+							{memDeleteConfirm ? (
+								<div className="flex items-center gap-2 shrink-0">
+									<button
+										onClick={() => setMemDeleteConfirm(false)}
+										className="h-7 px-2 rounded border border-border text-xs text-text-secondary hover:text-text-primary transition-colors"
+									>
+										Cancel
+									</button>
+									<button
+										onClick={handleDeleteAllMemories}
+										disabled={memDeleting}
+										className="h-7 px-2 rounded bg-red-600 text-white text-xs font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
+									>
+										{memDeleting ? "Deleting…" : "Confirm"}
+									</button>
+								</div>
+							) : (
+								<button
+									onClick={() => setMemDeleteConfirm(true)}
+									disabled={memDeleting || memDeleteSuccess}
+									className="inline-flex items-center justify-center h-8 px-3 rounded-lg border border-red-500/30 text-xs font-medium text-red-400 hover:bg-red-500/10 transition-colors shrink-0"
+								>
+									{memDeleting
+										? "Deleting…"
+										: memDeleteSuccess
+											? "Deleted ✓"
+											: "Delete all"}
+								</button>
+							)}
+						</div>
 					</div>
 				</section>
 

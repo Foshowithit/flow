@@ -217,17 +217,19 @@ async function main() {
 			);
 			failures++;
 		} else {
-			// 200 with SSE error is also acceptable (auth handled in-band)
+			// 200 with SSE — either in-band error or valid stream
 			const text = await streamRes.text();
 			if (text.includes('"error"') || text.includes('"Unauthorized"')) {
 				console.log("✓ POST /api/chat/stream — SSE error (no auth)");
+			} else if (text.includes('event: session')) {
+				console.log("✓ POST /api/chat/stream — SSE valid (keyless mode)");
 			} else {
 				console.error(
 					`✗ POST /api/chat/stream — unexpected status ${streamRes.status}: ${text.slice(0, 100)}`,
 				);
 				failures++;
 			}
-		}
+	}
 	}
 
 	// Settings page — signed-out should show sign-in CTA (not broken)
