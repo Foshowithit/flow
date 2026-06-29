@@ -95,10 +95,30 @@ jobs:
   e2e-tests:
     name: E2E (Playwright + smoke)
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: ./apps/desktop
+
+    services:
+      flow-postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: flow
+          POSTGRES_PASSWORD: flow
+          POSTGRES_DB: flow
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready -U flow -d flow
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://flow:flow@localhost:5432/flow
+      OPENCODE_GO_API_KEY: ${{ secrets.OPENCODE_GO_API_KEY }}
+      IS_CLERK_KEYLESS: "true"
 
     steps:
       - uses: actions/checkout@v4
@@ -116,9 +136,10 @@ jobs:
       - name: Install Playwright (chromium + system deps)
         run: npx playwright install --with-deps chromium
 
-        run: |
-          OPENCODE_GO_API_KEY=${{ secrets.OPENCODE_GO_API_KEY }} \
-          IS_CLERK_KEYLESS=true npx next dev > /tmp/next-dev.log 2>&1 &
+      - name: Apply DB schema
+        run: psql $DATABASE_URL -f lib/schema.sql
+
+      - name: Start Next.js dev server
         run: |
           IS_CLERK_KEYLESS=true npx next dev > /tmp/next-dev.log 2>&1 &
           for i in $(seq 1 45); do
@@ -135,15 +156,10 @@ jobs:
           done
 
       - name: API smoke tests
-        continue-on-error: true
         run: BASE_URL=http://localhost:3000 node scripts/smoke.mjs
 
       - name: Playwright e2e
-        env:
-          OPENCODE_GO_API_KEY: ${{ secrets.OPENCODE_GO_API_KEY }}
-          IS_CLERK_KEYLESS: "true"
         run: BASE_URL=http://localhost:3000 npx playwright test
-        continue-on-error: false
 
       - name: Archive test results
         if: failure()
@@ -158,7 +174,6 @@ jobs:
       - name: Kill dev server
         if: always()
         run: pkill -f "next dev" || true
-
   ########################################
   # Monorepo integrity
   ########################################
