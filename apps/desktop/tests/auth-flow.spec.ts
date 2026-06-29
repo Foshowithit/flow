@@ -25,6 +25,10 @@ import { test, expect, type Page } from "@playwright/test";
 import { existsSync, mkdirSync } from "fs";
 import { join } from "path";
 
+const isCI = !!process.env.CI;
+import { existsSync, mkdirSync } from "fs";
+import { join } from "path";
+
 // ─── Config ─────────────────────────────────────────────────────────────────
 
 const BASE_URL = process.env.BASE_URL || "http://localhost:3000";
@@ -135,6 +139,9 @@ function setupConsoleLogging(page: Page) {
 // ─── Test ───────────────────────────────────────────────────────────────────
 
 test.describe("Flow Auth QA", () => {
+	test.beforeEach(() => {
+		test.skip(isCI, "Skipped in CI (Clerk/session not available)");
+	});
   test("full auth flow: sign-up or sign-in → chat → message → stream → refresh → rename → delete", async ({
     browser,
   }) => {

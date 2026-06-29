@@ -4,6 +4,8 @@
 
 import { test, expect } from "@playwright/test";
 
+const isCI = !!process.env.CI;
+
 test.describe("Static assets", () => {
 	test("/flow-logo-vector.svg returns 200", async ({ request }) => {
 		const resp = await request.get("/flow-logo-vector.svg");
@@ -50,8 +52,11 @@ test.describe("Protected pages with Clerk timeout fallback", () => {
 		expect(hasFallback).toBe(true);
 	});
 });
-
 test.describe("Sign-in/Sign-up pages", () => {
+	test.beforeEach(() => {
+		test.skip(isCI, "Skipped in CI (Clerk keyless mode not available)");
+	});
+
 	test("/sign-in shows fallback or form", async ({ page }) => {
 		await page.goto("/sign-in", { waitUntil: "networkidle" });
 		await page.waitForTimeout(1000);
