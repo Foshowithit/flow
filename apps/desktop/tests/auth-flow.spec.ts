@@ -26,8 +26,6 @@ import { existsSync, mkdirSync } from "fs";
 import { join } from "path";
 
 const isCI = !!process.env.CI;
-import { existsSync, mkdirSync } from "fs";
-import { join } from "path";
 
 // ─── Config ─────────────────────────────────────────────────────────────────
 
