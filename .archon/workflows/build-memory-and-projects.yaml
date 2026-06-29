@@ -2,7 +2,8 @@ name: build-memory-and-projects
 description: >
   Build Claude-style cross-session memory, chat search, and projects system
   for the Flow chat app. Research → implement memory → implement projects → verify.
-model: sonnet
+provider: pi
+model: opencode-go/deepseek-v4-flash
 nodes:
   - id: research-design
     command: research-memory
@@ -43,7 +44,7 @@ nodes:
       - Fix real bugs, don't paper over them.
 
       When both pass, create a summary of what was built and end with "PASS".
-    model: sonnet
+    model: opencode-go/deepseek-v4-flash
     depends_on:
       - build-memory-system
       - build-projects
