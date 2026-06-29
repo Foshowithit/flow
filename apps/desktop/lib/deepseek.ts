@@ -189,6 +189,11 @@ export async function chatCompletion(
 	const usingByok = apiKey !== null;
 
 	if (!apiKey) {
+		// No BYOK key — fall back to platform env-var key
+		apiKey = process.env.OPENCODE_GO_API_KEY || process.env.DEEPSEEK_API_KEY || null;
+	}
+
+	if (!apiKey) {
 		throw new ProviderError(getMissingProviderMessage(), "auth", 400);
 	}
 
@@ -348,6 +353,11 @@ export async function* chatCompletionStream(
 	// Resolve API key (BYOK first, then platform fallback)
 	let apiKey = await getUserApiKey(userId);
 	const usingByok = apiKey !== null;
+
+	if (!apiKey) {
+		// No BYOK key — fall back to platform env-var key
+		apiKey = process.env.OPENCODE_GO_API_KEY || process.env.DEEPSEEK_API_KEY || null;
+	}
 
 	if (!apiKey) {
 		throw new ProviderError(getMissingProviderMessage(), "auth", 400);

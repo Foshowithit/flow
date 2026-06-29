@@ -116,7 +116,9 @@ jobs:
       - name: Install Playwright (chromium + system deps)
         run: npx playwright install --with-deps chromium
 
-      - name: Start Next.js dev server
+        run: |
+          OPENCODE_GO_API_KEY=${{ secrets.OPENCODE_GO_API_KEY }} \
+          IS_CLERK_KEYLESS=true npx next dev > /tmp/next-dev.log 2>&1 &
         run: |
           IS_CLERK_KEYLESS=true npx next dev > /tmp/next-dev.log 2>&1 &
           for i in $(seq 1 45); do
@@ -138,6 +140,7 @@ jobs:
 
       - name: Playwright e2e
         env:
+          OPENCODE_GO_API_KEY: ${{ secrets.OPENCODE_GO_API_KEY }}
           IS_CLERK_KEYLESS: "true"
         run: BASE_URL=http://localhost:3000 npx playwright test
         continue-on-error: false
