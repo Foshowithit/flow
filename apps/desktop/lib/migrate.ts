@@ -311,7 +311,7 @@ export async function runMigrations(): Promise<void> {
 				  content           TEXT NOT NULL,
 				  category          TEXT NOT NULL DEFAULT \'general\',
 				  importance        INTEGER NOT NULL DEFAULT 3,
-				  embedding         vector(1536),
+				  embedding         vector(768),
 				  source_session_id UUID REFERENCES chat_sessions(id) ON DELETE SET NULL,
 				  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
 				  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -402,7 +402,7 @@ export async function runMigrations(): Promise<void> {
 				  knowledge_id      UUID REFERENCES project_knowledge(id) ON DELETE CASCADE,
 				  project_id        UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
 				  content           TEXT NOT NULL,
-				  embedding         vector(1536),
+				  embedding         vector(768),
 				  chunk_index       INTEGER NOT NULL DEFAULT 0,
 				  created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
 				)
@@ -433,7 +433,7 @@ export async function runMigrations(): Promise<void> {
 				  content           TEXT NOT NULL,
 				  category          TEXT NOT NULL DEFAULT \'general\',
 				  importance        INTEGER NOT NULL DEFAULT 3,
-				  embedding         vector(1536),
+				  embedding         vector(768),
 				  source_session_id UUID REFERENCES chat_sessions(id) ON DELETE SET NULL,
 				  created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
 				)
