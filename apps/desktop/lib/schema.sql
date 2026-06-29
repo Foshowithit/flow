@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS users (
   deleted_at  TIMESTAMPTZ,
   custom_instructions_about_you TEXT,
   custom_instructions_how_to_respond TEXT
-
+);
 CREATE INDEX IF NOT EXISTS idx_users_clerk_id ON users (clerk_id);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users (role);
 CREATE INDEX IF NOT EXISTS idx_users_beta_status ON users (beta_status);

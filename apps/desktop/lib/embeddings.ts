@@ -5,7 +5,8 @@
  */
 
 const GEMINI_EMBEDDING_MODEL = "text-embedding-004";
-const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
+const GEMINI_BASE_URL =
+	"https://generativelanguage.googleapis.com/v1beta/models";
 const EMBEDDING_DIMENSIONS = 768;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────
