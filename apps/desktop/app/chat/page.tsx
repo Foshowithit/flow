@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import ChatMessages from "@/components/ChatMessages";
 import ChatInput from "@/components/ChatInput";
+import ProjectSelector from "@/components/ProjectSelector";
 import { Button } from "@/components/ui/button";
 import { Menu, ArrowUp, LogIn } from "lucide-react";
 import Link from "next/link";
@@ -324,6 +325,14 @@ function ChatPageContent() {
 	const [isLoading, setIsLoading] = useState(false);
 	const [sidebarOpen, setSidebarOpen] = useState(false);
 	const [emptyQuery, setEmptyQuery] = useState("");
+	const [projectId, setProjectId] = useState<string | null>(() => {
+		if (typeof window === "undefined") return null;
+		try {
+			return localStorage.getItem("flow_active_project_id");
+		} catch {
+			return null;
+		}
+	});
 	const abortRef = useRef<AbortController | null>(null);
 
 	const messagesByConvoRef = useRef(messagesByConvo);
@@ -402,11 +411,11 @@ function ChatPageContent() {
 				const serverMessages = (await res.json()) as ServerMessage[];
 				if (!Array.isArray(serverMessages)) return;
 
-			const msgs: Message[] = serverMessages.map((m) => ({
-				role: m.role as "user" | "assistant",
-				content: m.content,
-				attachments: m.attachments || undefined,
-			}));
+				const msgs: Message[] = serverMessages.map((m) => ({
+					role: m.role as "user" | "assistant",
+					content: m.content,
+					attachments: m.attachments || undefined,
+				}));
 
 				setMessagesByConvo((prev) => ({
 					...prev,
@@ -568,7 +577,11 @@ function ChatPageContent() {
 	const handleSend = useCallback(
 		async (text: string) => {
 			if (!activeConvoId) return;
-			const userMessage: Message = { role: "user", content: text, attachments: undefined };
+			const userMessage: Message = {
+				role: "user",
+				content: text,
+				attachments: undefined,
+			};
 			// Read latest messages from ref (avoids stale closure bug)
 			const currentMessages = messagesByConvoRef.current[activeConvoId] || [];
 			const allMessages = [...currentMessages, userMessage];
@@ -604,6 +617,9 @@ function ChatPageContent() {
 				const body: Record<string, unknown> = {
 					messages: apiMessages,
 				};
+				if (projectId) {
+					body.projectId = projectId;
+				}
 				const currentSessionId = sessionIdByConvo[activeConvoId];
 				if (currentSessionId) {
 					body.sessionId = currentSessionId;
@@ -818,6 +834,17 @@ function ChatPageContent() {
 						<span className="text-[11px] font-medium text-text-secondary bg-surface-hover px-2 py-0.5 rounded-full">
 							Assistant
 						</span>
+					</div>
+					<div className="ml-auto flex items-center gap-2">
+						<ProjectSelector
+							selectedProjectId={projectId ?? undefined}
+							onProjectChange={(id) => setProjectId(id)}
+						/>
+						{projectId && (
+							<span className="text-[11px] text-text-tertiary hidden sm:inline">
+								Project
+							</span>
+						)}
 					</div>
 				</header>
 

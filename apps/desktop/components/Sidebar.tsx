@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { useUser } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import ProjectSelector from "@/components/ProjectSelector";
 import {
 	Plus,
 	PanelLeftClose,
@@ -11,6 +12,7 @@ import {
 	Trash2,
 	Settings,
 	Brain,
+	Folder,
 	Search,
 	X,
 } from "lucide-react";
@@ -298,6 +300,7 @@ export default function Sidebar({
 				{/* Footer — User info + links */}
 				<div className="px-4 py-3 border-t border-border space-y-2">
 					<UserInfo />
+					<ProjectSelector />
 					<div className="flex items-center gap-1 pt-1 border-t border-border-light">
 						<Link
 							href="/memory"
@@ -305,6 +308,13 @@ export default function Sidebar({
 						>
 							<Brain className="h-3 w-3" />
 							Memory
+						</Link>
+						<Link
+							href="/projects"
+							className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium text-text-tertiary hover:text-text-secondary hover:bg-surface-hover transition-colors"
+						>
+							<Folder className="h-3 w-3" />
+							Projects
 						</Link>
 						<Link
 							href="/settings"

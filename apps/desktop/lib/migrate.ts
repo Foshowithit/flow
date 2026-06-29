@@ -292,7 +292,167 @@ export async function runMigrations(): Promise<void> {
 			console.log("[MIGRATE] Added attachments column to chat_messages.");
 		} catch (err: any) {
 			if (!err.message?.includes("already exists")) {
-				console.warn("[MIGRATE] Could not add attachments column:", err.message);
+				console.warn(
+					"[MIGRATE] Could not add attachments column:",
+					err.message,
+				);
+			}
+		}
+
+		// ── Phase 11: memories table + indexes ────────────────────────────
+		try {
+			await pool.query(`
+				CREATE EXTENSION IF NOT EXISTS vector
+			`);
+			await pool.query(`
+				CREATE TABLE IF NOT EXISTS memories (
+				  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+				  user_id           UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+				  content           TEXT NOT NULL,
+				  category          TEXT NOT NULL DEFAULT \'general\',
+				  importance        INTEGER NOT NULL DEFAULT 3,
+				  embedding         vector(1536),
+				  source_session_id UUID REFERENCES chat_sessions(id) ON DELETE SET NULL,
+				  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+				  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+				)
+			`);
+			await pool.query(`
+				CREATE INDEX IF NOT EXISTS idx_memories_user_id ON memories (user_id)
+			`);
+			await pool.query(`
+				CREATE INDEX IF NOT EXISTS idx_memories_category ON memories (category)
+			`);
+			console.log("[MIGRATE] memories table ready.");
+		} catch (err: any) {
+			if (!err.message?.includes("already exists")) {
+				console.warn("[MIGRATE] Could not create memories table:", err.message);
+			}
+		}
+
+		// ── Phase 12: chat_session_extractions table ──────────────────────
+		try {
+			await pool.query(`
+				CREATE TABLE IF NOT EXISTS chat_session_extractions (
+				  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+				  user_id            UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+				  session_id         UUID NOT NULL REFERENCES chat_sessions(id) ON DELETE CASCADE,
+				  last_message_count INTEGER NOT NULL DEFAULT 0,
+				  created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+				  updated_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+				  UNIQUE(session_id)
+				)
+			`);
+			await pool.query(`
+				CREATE INDEX IF NOT EXISTS idx_chat_session_extractions_user_id
+				  ON chat_session_extractions (user_id)
+			`);
+			await pool.query(`
+				CREATE INDEX IF NOT EXISTS idx_chat_session_extractions_session_id
+				  ON chat_session_extractions (session_id)
+			`);
+			console.log("[MIGRATE] chat_session_extractions table ready.");
+		} catch (err: any) {
+			if (!err.message?.includes("already exists")) {
+				console.warn(
+					"[MIGRATE] Could not create chat_session_extractions table:",
+					err.message,
+				);
+			}
+		}
+
+		// ── Phase 13: projects table + indexes ────────────────────────────
+		try {
+			await pool.query(`
+				CREATE TABLE IF NOT EXISTS projects (
+				  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+				  user_id        UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+				  name           TEXT NOT NULL,
+				  description    TEXT,
+				  instructions   TEXT,
+				  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+				  updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+				)
+			`);
+			await pool.query(`
+				CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects (user_id)
+			`);
+			console.log("[MIGRATE] projects table ready.");
+		} catch (err: any) {
+			if (!err.message?.includes("already exists")) {
+				console.warn("[MIGRATE] Could not create projects table:", err.message);
+			}
+		}
+
+		// ── Phase 14: project_knowledge + project_knowledge_chunks ────────
+		try {
+			await pool.query(`
+				CREATE TABLE IF NOT EXISTS project_knowledge (
+				  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+				  project_id     UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				  title          TEXT,
+				  source         TEXT,
+				  content        TEXT NOT NULL,
+				  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+				)
+			`);
+			await pool.query(`
+				CREATE TABLE IF NOT EXISTS project_knowledge_chunks (
+				  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+				  knowledge_id      UUID REFERENCES project_knowledge(id) ON DELETE CASCADE,
+				  project_id        UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				  content           TEXT NOT NULL,
+				  embedding         vector(1536),
+				  chunk_index       INTEGER NOT NULL DEFAULT 0,
+				  created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+				)
+			`);
+			await pool.query(`
+				CREATE INDEX IF NOT EXISTS idx_project_knowledge_chunks_project_id
+				  ON project_knowledge_chunks (project_id)
+			`);
+			console.log(
+				"[MIGRATE] project_knowledge + project_knowledge_chunks tables ready.",
+			);
+		} catch (err: any) {
+			if (!err.message?.includes("already exists")) {
+				console.warn(
+					"[MIGRATE] Could not create project knowledge tables:",
+					err.message,
+				);
+			}
+		}
+
+		// ── Phase 15: project_memories table + indexes ────────────────────
+		try {
+			await pool.query(`
+				CREATE TABLE IF NOT EXISTS project_memories (
+				  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+				  project_id        UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				  memory_id         UUID REFERENCES memories(id) ON DELETE CASCADE,
+				  content           TEXT NOT NULL,
+				  category          TEXT NOT NULL DEFAULT \'general\',
+				  importance        INTEGER NOT NULL DEFAULT 3,
+				  embedding         vector(1536),
+				  source_session_id UUID REFERENCES chat_sessions(id) ON DELETE SET NULL,
+				  created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+				)
+			`);
+			await pool.query(`
+				CREATE INDEX IF NOT EXISTS idx_project_memories_project_id
+				  ON project_memories (project_id)
+			`);
+			await pool.query(`
+				CREATE INDEX IF NOT EXISTS idx_project_memories_memory_id
+				  ON project_memories (memory_id)
+			`);
+			console.log("[MIGRATE] project_memories table ready.");
+		} catch (err: any) {
+			if (!err.message?.includes("already exists")) {
+				console.warn(
+					"[MIGRATE] Could not create project_memories table:",
+					err.message,
+				);
 			}
 		}
 

@@ -23,8 +23,8 @@ export interface ChatMessage {
 export interface ChatRequestBody {
 	messages: ChatMessage[];
 	sessionId?: string;
+	projectId?: string;
 }
-
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -169,9 +169,10 @@ export function injectAttachmentMessages(
 		result.push(msg);
 		if (msg.attachments && msg.attachments.length > 0) {
 			for (const att of msg.attachments) {
-				const sizeLabel = att.size >= 1024
-					? `${(att.size / 1024).toFixed(1)} KB`
-					: `${att.size} B`;
+				const sizeLabel =
+					att.size >= 1024
+						? `${(att.size / 1024).toFixed(1)} KB`
+						: `${att.size} B`;
 				const formatted = [
 					`Attached file: ${att.filename} (${att.mimeType}, ${sizeLabel})`,
 					"```",

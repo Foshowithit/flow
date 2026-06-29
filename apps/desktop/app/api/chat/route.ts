@@ -8,6 +8,11 @@ import {
 	maybeUpdateSessionSummary,
 } from "@/lib/memory";
 import {
+	getProjectContext,
+	getRelevantMemories,
+	extractMemoryFacts,
+} from "@/lib/memory-v2";
+import {
 	type ChatMessage,
 	type ChatRequestBody,
 	validateBody,
@@ -19,7 +24,6 @@ import {
 	getUserInstructions,
 	formatUserInstructionsForSystemMessage,
 } from "@/lib/user-instructions";
-
 
 // ─── Route Handler ─────────────────────────────────────────────────────────
 
@@ -71,7 +75,6 @@ export async function POST(request: NextRequest) {
 		// ── Authenticated mode ─────────────────────────────────────────
 		const internalUserId = user.id;
 
-
 		// ── Rate limit check ─────────────────────────────────────────────
 		const usage = await checkUsage(internalUserId);
 		if (!usage.allowed) {
@@ -94,7 +97,9 @@ export async function POST(request: NextRequest) {
 			body.sessionId,
 			lastUserMessage.slice(0, 80),
 		);
-		let providerMessages = [...body.messages];
+		let providerMessages: ChatMessage[] = [...body.messages];
+
+		// ── 1. Custom instructions (prepend) ─────────────────────────────
 		try {
 			const instructions = await getUserInstructions(internalUserId);
 			const systemMessage = formatUserInstructionsForSystemMessage(
@@ -111,30 +116,78 @@ export async function POST(request: NextRequest) {
 			// Custom instruction failures must not break chat
 		}
 
-		// ── Inject attachment content (from request body) ────────────
-		try {
-			providerMessages = injectAttachmentMessages(providerMessages);
-		} catch {
-			// Attachment injection failures must not break chat
+		// ── 2. Project context injection (if body.projectId is present) ──
+		if (body.projectId) {
+			try {
+				const projectContext = await getProjectContext(
+					body.projectId,
+					lastUserMessage,
+				);
+				if (projectContext) {
+					// Project instructions
+					if (projectContext.instructions) {
+						providerMessages.push({
+							role: "system",
+							content: projectContext.instructions,
+						} as ChatMessage);
+					}
+					// Project knowledge (RAG chunks)
+					if (projectContext.knowledge) {
+						providerMessages.push({
+							role: "system",
+							content: `Relevant project knowledge:\n${projectContext.knowledge}`,
+						} as ChatMessage);
+					}
+					// Project memories
+					if (projectContext.memories) {
+						providerMessages.push({
+							role: "system",
+							content: `Project memories:\n${projectContext.memories}`,
+						} as ChatMessage);
+					}
+				}
+			} catch {
+				// Project context failures must not break chat
+			}
 		}
 
-		// ── Inject memory context ──────────────────────────────────
+		// ── 3. Cross-session memory injection ─────────────────────────
+		try {
+			const relevantMemories = await getRelevantMemories(
+				internalUserId,
+				lastUserMessage,
+			);
+			if (relevantMemories) {
+				providerMessages.push({
+					role: "system",
+					content: relevantMemories,
+				} as ChatMessage);
+			}
+		} catch {
+			// Memory failures must not break chat
+		}
+
+		// ── 4. Session summary context (existing v1) ───────────────────
 		try {
 			const summaryContext = await getSessionSummaryContext(
 				internalUserId,
 				session.id,
 			);
 			if (summaryContext) {
-				providerMessages = [
-					...providerMessages,
-					{
-						role: "system",
-						content: `Relevant context from this conversation so far: ${summaryContext}`,
-					} as ChatMessage,
-				];
+				providerMessages.push({
+					role: "system",
+					content: `Relevant context from this conversation so far: ${summaryContext}`,
+				} as ChatMessage);
 			}
 		} catch {
 			// Memory failures must not break chat
+		}
+
+		// ── 5. Inject attachment content (from request body) ────────────
+		try {
+			providerMessages = injectAttachmentMessages(providerMessages);
+		} catch {
+			// Attachment injection failures must not break chat
 		}
 
 		// ── Call DeepSeek ────────────────────────────────────────────────
@@ -156,6 +209,16 @@ export async function POST(request: NextRequest) {
 
 		// ── Update memory summary (best-effort) ─────────────────────────
 		maybeUpdateSessionSummary(internalUserId, session.id);
+
+		// ── Fire memory extraction (fire-and-forget) ────────────────────
+		extractMemoryFacts(
+			internalUserId,
+			session.id,
+			body.messages,
+			body.projectId,
+		).catch((err: unknown) =>
+			console.error("[MEMORY] Extraction failed:", err),
+		);
 
 		// ── Record usage ─────────────────────────────────────────────────
 		await recordUsage(
