@@ -9,7 +9,6 @@ export async function GET() {
 		status: "ok",
 		timestamp: new Date().toISOString(),
 		app: "flow-web",
-		mockChat: process.env.MOCK_CHAT === "true",
 		aiConfigured: !!(
 			process.env.DEEPSEEK_API_KEY || process.env.OPENCODE_GO_API_KEY
 		),

@@ -25,11 +25,6 @@ export interface ChatRequestBody {
 	sessionId?: string;
 }
 
-export interface MockUsage {
-	prompt_tokens: number;
-	completion_tokens: number;
-	total_tokens: number;
-}
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -37,53 +32,6 @@ const ALLOWED_ROLES = ["user", "assistant", "system"] as const;
 const MAX_MESSAGES = 40;
 const MAX_CHARS_PER_MESSAGE = 8000;
 const MAX_ATTACHMENTS = ATTACHMENT_LIMITS.MAX_COUNT;
-
-export const MOCK_CHAT_SESSION_ID = "mock-session";
-
-export function buildMockChatResponse(messages: ChatMessage[]): string {
-	const last = messages[messages.length - 1];
-	const userMessage = last?.content?.trim() || "";
-
-	if (/hello|hi|hey/i.test(userMessage)) {
-		return "Hello! I'm Flow Assistant. How can I help you today?";
-	}
-
-	if (/help|what can you/i.test(userMessage)) {
-		return (
-			"I'm here to help you think through problems, answer questions, and " +
-			"provide thoughtful analysis. Try asking me about a decision you're " +
-			"working on, a situation you'd like to understand better, or ask me to " +
-			"compare options for you."
-		);
-	}
-
-	return (
-		"That's a great question. Let me think through it carefully.\n\n" +
-		"Based on what you've shared, here are a few considerations:\n\n" +
-		"1. **Clarity** — taking a step back to frame the question clearly helps " +
-		"us find the best path forward.\n\n" +
-		"2. **Context** — understanding the broader situation makes the answer " +
-		"more useful and relevant.\n\n" +
-		"3. **Next steps** — once we've explored the angles, we can land on " +
-		"actionable next steps.\n\n" +
-		"What specific aspect would you like to explore further?"
-	);
-}
-
-export function buildMockChatUsage(
-	messages: ChatMessage[],
-	assistantContent: string,
-): MockUsage {
-	const promptText = messages.map((message) => message.content).join(" ");
-	const promptTokens = Math.ceil(promptText.length / 4);
-	const completionTokens = Math.ceil(assistantContent.length / 4);
-
-	return {
-		prompt_tokens: promptTokens,
-		completion_tokens: completionTokens,
-		total_tokens: promptTokens + completionTokens,
-	};
-}
 
 export function requestLooksLikeDesktop(headers: Headers): boolean {
 	const referrer = headers.get("referer") ?? headers.get("referrer") ?? "";

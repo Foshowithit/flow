@@ -20,37 +20,6 @@ import {
 	formatUserInstructionsForSystemMessage,
 } from "@/lib/user-instructions";
 
-// ─── Mock response ───────────────────────────────────────────────────
-
-function mockResponse(messages: ChatMessage[]): string {
-	const last = messages[messages.length - 1];
-	const userMessage = last?.content?.trim() || "";
-
-	if (/hello|hi|hey/i.test(userMessage)) {
-		return "Hello! I'm Flow Assistant. How can I help you today?";
-	}
-
-	if (/help|what can you/i.test(userMessage)) {
-		return (
-			"I'm here to help you think through problems, answer questions, and " +
-			"provide thoughtful analysis. Try asking me about a decision you're " +
-			"working on, a situation you'd like to understand better, or ask me to " +
-			"compare options for you."
-		);
-	}
-
-	return (
-		"That's a great question. Let me think through it carefully.\n\n" +
-		"Based on what you've shared, here are a few considerations:\n\n" +
-		"1. **Clarity** — taking a step back to frame the question clearly helps " +
-		"us find the best path forward.\n\n" +
-		"2. **Context** — understanding the broader situation makes the answer " +
-		"more useful and relevant.\n\n" +
-		"3. **Next steps** — once we've explored the angles, we can land on " +
-		"actionable next steps.\n\n" +
-		"What specific aspect would you like to explore further?"
-	);
-}
 
 // ─── Route Handler ─────────────────────────────────────────────────────────
 
@@ -102,25 +71,6 @@ export async function POST(request: NextRequest) {
 		// ── Authenticated mode ─────────────────────────────────────────
 		const internalUserId = user.id;
 
-		// ── Mock mode (no backend needed, but auth still required) ────────
-		if (process.env.MOCK_CHAT === "true") {
-			const content = mockResponse(body.messages);
-			await new Promise((r) => setTimeout(r, 500));
-			return NextResponse.json({
-				id: "mock-session",
-				sessionId: "mock-session",
-				choices: [
-					{
-						index: 0,
-						message: {
-							role: "assistant",
-							content,
-						},
-					},
-				],
-				mock: true,
-			});
-		}
 
 		// ── Rate limit check ─────────────────────────────────────────────
 		const usage = await checkUsage(internalUserId);

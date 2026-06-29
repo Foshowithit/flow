@@ -47,9 +47,6 @@ export function isOpenCodeGoEnabled(): boolean {
 	return !!process.env.OPENCODE_GO_API_KEY;
 }
 
-export function isMockChatEnabled(): boolean {
-	return process.env.MOCK_CHAT === "true";
-}
 
 export function hasConfiguredProviderKey(): boolean {
 	return Boolean(process.env.OPENCODE_GO_API_KEY || process.env.DEEPSEEK_API_KEY);
@@ -64,7 +61,7 @@ export function getMissingProviderMessage(): string {
 	return (
 		"No AI provider key is configured. Set DEEPSEEK_API_KEY or " +
 		"OPENCODE_GO_API_KEY, or sign in with BYOK. For local development, " +
-		"set MOCK_CHAT=true."
+		"configure DEEPSEEK_API_KEY or OPENCODE_GO_API_KEY."
 	);
 }
 

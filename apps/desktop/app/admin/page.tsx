@@ -44,7 +44,6 @@ interface AdminHealth {
 	timestamp: string;
 	app: string;
 	db: boolean | null;
-	mockChat: boolean;
 	aiConfigured: boolean;
 	clerkWebhookSecret: boolean;
 	envFlags: Record<string, boolean>;
@@ -502,10 +501,6 @@ function HealthSection({ health }: { health: AdminHealth }) {
 					<HealthItem
 						label="Database"
 						value={health.db === true ? "connected" : "disconnected"}
-					/>
-					<HealthItem
-						label="Mock Chat"
-						value={health.mockChat ? "enabled" : "disabled"}
 					/>
 					<HealthItem
 						label="AI Configured"

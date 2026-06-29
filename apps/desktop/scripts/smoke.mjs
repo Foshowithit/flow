@@ -123,11 +123,11 @@ async function main() {
 		expectedSubstring: "valid email",
 	});
 
-	// Chat API — mock/valid response, or auth-required (401/404 after middleware hardening)
+	// Chat API — valid response, or auth-required (401/404 after middleware hardening)
 	{
 		const url = `${BASE_URL}/api/chat`;
 
-		// Valid body — mock response or middleware block
+		// Valid body — provider response or middleware block
 		const chatRes = await fetch(url, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
@@ -137,7 +137,7 @@ async function main() {
 		if (chatRes.ok) {
 			const chatData = await chatRes.json();
 			if (chatData.choices?.[0]?.message?.content) {
-				console.log("✓ POST /api/chat (valid) — mock response");
+				console.log("✓ POST /api/chat (valid) — response");
 			} else {
 				console.error("✗ POST /api/chat (valid) — missing content");
 				failures++;

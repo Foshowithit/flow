@@ -7,7 +7,7 @@
  * Events:
  *   session   { sessionId }
  *   delta     { content }
- *   done      { id, sessionId, model, usage, mock: false }
+ *   done      { id, sessionId, model, usage }
  *   error     { error }
  */
 
@@ -46,58 +46,6 @@ function hasProviderKey(): boolean {
 	);
 }
 
-function shouldUseMockChat(): boolean {
-	return (
-		process.env.MOCK_CHAT === "true" ||
-		(!hasProviderKey() && process.env.NODE_ENV !== "production")
-	);
-}
-
-function mockStreamResponse(body: ChatRequestBody): Response {
-	const assistantText =
-		"Flow desktop dev fallback is working. Configure a provider key or Flow gateway for real AI responses.";
-	const sessionId = body.sessionId ?? crypto.randomUUID();
-	const encoder = new TextEncoder();
-	const promptTokens = body.messages.reduce(
-		(total, message) => total + Math.ceil(message.content.length / 4),
-		0,
-	);
-	const completionTokens = Math.ceil(assistantText.length / 4);
-
-	const stream = new ReadableStream({
-		start(controller) {
-			controller.enqueue(encoder.encode(sseString("session", { sessionId })));
-			controller.enqueue(
-				encoder.encode(sseString("delta", { content: assistantText })),
-			);
-			controller.enqueue(
-				encoder.encode(
-					sseString("done", {
-						id: sessionId,
-						sessionId,
-						model: "mock-flow",
-						usage: {
-							prompt_tokens: promptTokens,
-							completion_tokens: completionTokens,
-							total_tokens: promptTokens + completionTokens,
-						},
-						mock: true,
-					}),
-				),
-			);
-			controller.close();
-		},
-	});
-
-	return new Response(stream, {
-		status: 200,
-		headers: {
-			"Content-Type": "text/event-stream",
-			"Cache-Control": "no-cache, no-transform",
-			Connection: "keep-alive",
-		},
-	});
-}
 
 // ─── Route Handler ─────────────────────────────────────────────────────────
 
@@ -118,15 +66,12 @@ export async function POST(request: NextRequest) {
 			});
 		}
 
-		if (shouldUseMockChat()) {
-			return mockStreamResponse(body);
-		}
 
 		if (!hasProviderKey() && process.env.NODE_ENV === "production") {
 			return new Response(
 				JSON.stringify({
 					error:
-						"Streaming chat is not configured. Set DEEPSEEK_API_KEY or OPENCODE_GO_API_KEY, or enable MOCK_CHAT for development.",
+						"Streaming chat is not configured. Set DEEPSEEK_API_KEY or OPENCODE_GO_API_KEY, and ensure a provider key is configured for production.",
 				}),
 				{
 					status: 503,
@@ -194,7 +139,6 @@ export async function POST(request: NextRequest) {
 										completion_tokens: finalTokensOut,
 										total_tokens: finalTokensIn + finalTokensOut,
 									},
-									mock: false,
 								}),
 							),
 						);
@@ -385,7 +329,6 @@ export async function POST(request: NextRequest) {
 									completion_tokens: finalResult.tokensOut,
 									total_tokens: finalResult.tokensIn + finalResult.tokensOut,
 								},
-								mock: false,
 							}),
 						),
 					);

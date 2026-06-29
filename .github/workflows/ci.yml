@@ -60,8 +60,6 @@ jobs:
 
       - name: Next.js build
         run: npx next build
-        env:
-          MOCK_CHAT: "true"
 
   ########################################
   # Validate Gateway
@@ -120,7 +118,7 @@ jobs:
 
       - name: Start Next.js dev server
         run: |
-          MOCK_CHAT=true IS_CLERK_KEYLESS=true npx next dev > /tmp/next-dev.log 2>&1 &
+          IS_CLERK_KEYLESS=true npx next dev > /tmp/next-dev.log 2>&1 &
           for i in $(seq 1 45); do
             if curl -sf http://localhost:3000 > /dev/null 2>&1; then
               echo "Ready after ${i}s"
