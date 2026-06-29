@@ -120,7 +120,7 @@ jobs:
 
       - name: Start Next.js dev server
         run: |
-          MOCK_CHAT=true npx next dev > /tmp/next-dev.log 2>&1 &
+          MOCK_CHAT=true IS_CLERK_KEYLESS=true npx next dev > /tmp/next-dev.log 2>&1 &
           for i in $(seq 1 45); do
             if curl -sf http://localhost:3000 > /dev/null 2>&1; then
               echo "Ready after ${i}s"
@@ -139,6 +139,8 @@ jobs:
         run: BASE_URL=http://localhost:3000 node scripts/smoke.mjs
 
       - name: Playwright e2e
+        env:
+          IS_CLERK_KEYLESS: "true"
         run: BASE_URL=http://localhost:3000 npx playwright test
         continue-on-error: false
 
