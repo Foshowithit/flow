@@ -456,6 +456,116 @@ export async function runMigrations(): Promise<void> {
 			}
 		}
 
+		// ── Phase 11: Enable pgvector extension ────────────────────────
+		try {
+			await pool.query(`CREATE EXTENSION IF NOT EXISTS vector`);
+			console.log("[MIGRATE] pgvector extension enabled.");
+		} catch (err: any) {
+			if (!err.message?.includes("already exists")) {
+				console.warn("[MIGRATE] Could not enable pgvector:", err.message);
+			}
+		}
+
+		// ── Phase 12: Create projects table ───────────────────────────
+		try {
+			await pool.query(`
+				CREATE TABLE IF NOT EXISTS projects (
+				  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+				  user_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+				  name          TEXT NOT NULL,
+				  instructions  TEXT NOT NULL DEFAULT '',
+				  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+				  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+				)
+			`);
+			await pool.query(`
+				CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects (user_id)
+			`);
+			console.log("[MIGRATE] Projects table ready.");
+		} catch (err: any) {
+			if (!err.message?.includes("already exists")) {
+				console.warn("[MIGRATE] Could not create projects table:", err.message);
+			}
+		}
+
+		// ── Phase 13: Create project_knowledge table ──────────────────
+		try {
+			await pool.query(`
+				CREATE TABLE IF NOT EXISTS project_knowledge (
+				  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+				  project_id    UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				  file_name     TEXT NOT NULL,
+				  content       TEXT NOT NULL,
+				  content_type  TEXT NOT NULL DEFAULT 'text',
+				  embedding     vector(1536),
+				  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+				)
+			`);
+			await pool.query(`
+				CREATE INDEX IF NOT EXISTS idx_project_knowledge_project_id ON project_knowledge (project_id)
+			`);
+			// Vector index only if table is empty — skip error if column/index not ready
+			try {
+				await pool.query(`
+					CREATE INDEX IF NOT EXISTS idx_project_knowledge_embedding ON project_knowledge
+					  USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100)
+				`);
+			} catch {
+				console.log("[MIGRATE] Skipped project_knowledge vector index (may require data).");
+			}
+			console.log("[MIGRATE] Project knowledge table ready.");
+		} catch (err: any) {
+			if (!err.message?.includes("already exists")) {
+				console.warn("[MIGRATE] Could not create project_knowledge table:", err.message);
+			}
+		}
+
+		// ── Phase 14: Create project_memories table ───────────────────
+		try {
+			await pool.query(`
+				CREATE TABLE IF NOT EXISTS project_memories (
+				  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+				  project_id    UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				  content       TEXT NOT NULL,
+				  category      TEXT NOT NULL DEFAULT 'general',
+				  source_session_id UUID REFERENCES chat_sessions(id) ON DELETE SET NULL,
+				  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+				  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+				)
+			`);
+			await pool.query(`
+				CREATE INDEX IF NOT EXISTS idx_project_memories_project_id ON project_memories (project_id)
+			`);
+			console.log("[MIGRATE] Project memories table ready.");
+		} catch (err: any) {
+			if (!err.message?.includes("already exists")) {
+				console.warn("[MIGRATE] Could not create project_memories table:", err.message);
+			}
+		}
+
+		// ── Phase 15: Add project_id to chat_sessions ─────────────────
+		try {
+			await pool.query(`
+				ALTER TABLE chat_sessions ADD COLUMN IF NOT EXISTS project_id UUID REFERENCES projects(id) ON DELETE SET NULL
+			`);
+			console.log("[MIGRATE] Added project_id column to chat_sessions.");
+		} catch (err: any) {
+			if (!err.message?.includes("already exists")) {
+				console.warn("[MIGRATE] Could not add project_id column:", err.message);
+			}
+		}
+		try {
+			await pool.query(`
+				CREATE INDEX IF NOT EXISTS idx_chat_sessions_project_id ON chat_sessions (project_id)
+			`);
+			console.log("[MIGRATE] Created project_id index on chat_sessions.");
+		} catch (err: any) {
+			if (!err.message?.includes("already exists")) {
+				console.warn("[MIGRATE] Could not create project_id index:", err.message);
+			}
+		}
+
+
 		console.log("[MIGRATE] Migrations complete.");
 	} finally {
 		await pool.end();

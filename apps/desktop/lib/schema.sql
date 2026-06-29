@@ -5,6 +5,9 @@
 -- Enable UUID generation
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
+-- Enable pgvector (Neon supports this)
+CREATE EXTENSION IF NOT EXISTS vector;
+
 -- ─── Users ──────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS users (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -19,7 +22,7 @@ CREATE TABLE IF NOT EXISTS users (
   deleted_at  TIMESTAMPTZ,
   custom_instructions_about_you TEXT,
   custom_instructions_how_to_respond TEXT
-);
+
 CREATE INDEX IF NOT EXISTS idx_users_clerk_id ON users (clerk_id);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users (role);
 CREATE INDEX IF NOT EXISTS idx_users_beta_status ON users (beta_status);
@@ -54,6 +57,21 @@ CREATE TABLE IF NOT EXISTS api_keys (
 
 CREATE INDEX IF NOT EXISTS idx_api_keys_user_id ON api_keys (user_id);
 
+-- ─── Usage Records ──────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS usage_records (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  session_id UUID REFERENCES chat_sessions(id) ON DELETE SET NULL,
+  model      TEXT NOT NULL,
+  tokens_in  INTEGER NOT NULL DEFAULT 0,
+  tokens_out INTEGER NOT NULL DEFAULT 0,
+  cost_cents INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_usage_records_user_id ON usage_records (user_id);
+CREATE INDEX IF NOT EXISTS idx_usage_records_created_at ON usage_records (created_at);
+
 -- ─── Chat Sessions ──────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS chat_sessions (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -87,23 +105,6 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 
 CREATE INDEX IF NOT EXISTS idx_chat_messages_session_id ON chat_messages (session_id);
 
-
--- ─── Usage Records ──────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS usage_records (
-  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  session_id UUID REFERENCES chat_sessions(id) ON DELETE SET NULL,
-  model      TEXT NOT NULL,
-  tokens_in  INTEGER NOT NULL DEFAULT 0,
-  tokens_out INTEGER NOT NULL DEFAULT 0,
-  cost_cents INTEGER NOT NULL DEFAULT 0,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE INDEX IF NOT EXISTS idx_usage_records_user_id ON usage_records (user_id);
-CREATE INDEX IF NOT EXISTS idx_usage_records_created_at ON usage_records (created_at);
-
-
 -- ─── Waitlist Signups ───────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS waitlist (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -136,93 +137,67 @@ CREATE INDEX IF NOT EXISTS idx_chat_session_summaries_user_id
 CREATE INDEX IF NOT EXISTS idx_chat_session_summaries_session_id
   ON chat_session_summaries (session_id);
 
--- ─── Memories (cross-session memory facts) ───────────────────────────
-CREATE EXTENSION IF NOT EXISTS vector;
 
-CREATE TABLE IF NOT EXISTS memories (
-  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id           UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  content           TEXT NOT NULL,
-  category          TEXT NOT NULL DEFAULT 'general',
-  importance        INTEGER NOT NULL DEFAULT 3,
-  embedding         vector(768),
-  source_session_id UUID REFERENCES chat_sessions(id) ON DELETE SET NULL,
-  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE INDEX IF NOT EXISTS idx_memories_user_id ON memories (user_id);
-CREATE INDEX IF NOT EXISTS idx_memories_category ON memories (category);
-
--- ─── Chat Session Extractions (extraction progress tracking) ─────────
-CREATE TABLE IF NOT EXISTS chat_session_extractions (
-  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id            UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  session_id         UUID NOT NULL REFERENCES chat_sessions(id) ON DELETE CASCADE,
-  last_message_count INTEGER NOT NULL DEFAULT 0,
-  created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE(session_id)
-);
-
-CREATE INDEX IF NOT EXISTS idx_chat_session_extractions_user_id
-  ON chat_session_extractions (user_id);
-
-CREATE INDEX IF NOT EXISTS idx_chat_session_extractions_session_id
-  ON chat_session_extractions (session_id);
-
--- ─── Projects ─────────────────────────────────────────────────────────
+-- ─── Projects ──────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS projects (
-  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id        UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  name           TEXT NOT NULL,
-  description    TEXT,
-  instructions   TEXT,
-  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name          TEXT NOT NULL,
+  instructions  TEXT NOT NULL DEFAULT '',
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects (user_id);
 
--- ─── Project Knowledge (source documents) ────────────────────────────
+-- ─── Project Knowledge (uploaded files) ───────────────────────────
 CREATE TABLE IF NOT EXISTS project_knowledge (
-  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id     UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  title          TEXT,
-  source         TEXT,
-  content        TEXT NOT NULL,
-  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id    UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  file_name     TEXT NOT NULL,
+  content       TEXT NOT NULL,
+  content_type  TEXT NOT NULL DEFAULT 'text',
+  embedding     vector(1536),
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- ─── Project Knowledge Chunks (embedded chunks) ──────────────────────
-CREATE TABLE IF NOT EXISTS project_knowledge_chunks (
-  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  knowledge_id      UUID REFERENCES project_knowledge(id) ON DELETE CASCADE,
-  project_id        UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  content           TEXT NOT NULL,
-  embedding         vector(768),
-  chunk_index       INTEGER NOT NULL DEFAULT 0,
-  created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+CREATE INDEX IF NOT EXISTS idx_project_knowledge_project_id ON project_knowledge (project_id);
+CREATE INDEX IF NOT EXISTS idx_project_knowledge_embedding ON project_knowledge
+  USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
 
-CREATE INDEX IF NOT EXISTS idx_project_knowledge_chunks_project_id
-  ON project_knowledge_chunks (project_id);
-
--- ─── Project Memories (memories scoped to a project) ─────────────────
+-- ─── Project Memories (cross-session memory per project) ──────────
 CREATE TABLE IF NOT EXISTS project_memories (
-  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id        UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  memory_id         UUID REFERENCES memories(id) ON DELETE CASCADE,
-  content           TEXT NOT NULL,
-  category          TEXT NOT NULL DEFAULT 'general',
-  importance        INTEGER NOT NULL DEFAULT 3,
-  embedding         vector(768),
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id    UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  content       TEXT NOT NULL,
+  category      TEXT NOT NULL DEFAULT 'general',
   source_session_id UUID REFERENCES chat_sessions(id) ON DELETE SET NULL,
-  created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_project_memories_project_id
-  ON project_memories (project_id);
+CREATE INDEX IF NOT EXISTS idx_project_memories_project_id ON project_memories (project_id);
 
-CREATE INDEX IF NOT EXISTS idx_project_memories_memory_id
-  ON project_memories (memory_id);
+-- ─── Chat Session belongs to a Project ───────────────────────────
+ALTER TABLE chat_sessions ADD COLUMN IF NOT EXISTS project_id UUID REFERENCES projects(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS idx_chat_sessions_project_id ON chat_sessions (project_id);
+
+-- ─── Cross-Session Memory Facts ─────────────────────────────────────
+CREATE TABLE IF NOT EXISTS memories (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  content       TEXT NOT NULL,
+  category      TEXT NOT NULL DEFAULT 'general',
+    -- Categories: 'fact', 'preference', 'goal', 'constraint', 'identity', 'general'
+  source_session_id UUID REFERENCES chat_sessions(id) ON DELETE SET NULL,
+  source_message_id UUID REFERENCES chat_messages(id) ON DELETE SET NULL,
+  embedding     vector(1536),  -- for semantic search
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_memories_user_id ON memories (user_id);
+CREATE INDEX IF NOT EXISTS idx_memories_category ON memories (category);
+CREATE INDEX IF NOT EXISTS idx_memories_embedding ON memories
+  USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);

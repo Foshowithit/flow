@@ -106,14 +106,15 @@ export async function getOrCreateSession(
 	internalUserId: string,
 	sessionId?: string,
 	title?: string,
+	projectId?: string,
 ): Promise<{ id: string }> {
 	// If a sessionId was provided, try to find it
 	if (sessionId) {
 		try {
 			const rows = (await sql`
-        SELECT id FROM chat_sessions
-        WHERE id = ${sessionId} AND user_id = ${internalUserId} AND deleted_at IS NULL
-      `) as Array<{ id: string }>;
+	        SELECT id FROM chat_sessions
+	        WHERE id = ${sessionId} AND user_id = ${internalUserId} AND deleted_at IS NULL
+	      `) as Array<{ id: string }>;
 			if (rows.length > 0) {
 				return rows[0];
 			}
@@ -124,11 +125,19 @@ export async function getOrCreateSession(
 
 	// Create a new session
 	const displayTitle = title || "New Chat";
+	if (projectId) {
+		const rows = (await sql`
+			INSERT INTO chat_sessions (user_id, title, project_id)
+			VALUES (${internalUserId}, ${displayTitle}, ${projectId})
+			RETURNING id
+		`) as Array<{ id: string }>;
+		return rows[0];
+	}
 	const rows = (await sql`
-    INSERT INTO chat_sessions (user_id, title)
-    VALUES (${internalUserId}, ${displayTitle})
-    RETURNING id
-  `) as Array<{ id: string }>;
+	    INSERT INTO chat_sessions (user_id, title)
+	    VALUES (${internalUserId}, ${displayTitle})
+	    RETURNING id
+	  `) as Array<{ id: string }>;
 	return rows[0];
 }
 
@@ -152,6 +161,7 @@ export async function storeMessage(
 		INSERT INTO chat_messages (session_id, role, content, tokens_in, tokens_out, attachments)
 		VALUES (${sessionId}, ${role}, ${content}, ${tokensIn}, ${tokensOut}, ${attachmentsJson}::jsonb)
 	  `;
+
 	} catch (err) {
 		console.error("[CHAT] Failed to store message:", err);
 	}

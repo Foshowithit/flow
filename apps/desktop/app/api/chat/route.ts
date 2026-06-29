@@ -96,6 +96,7 @@ export async function POST(request: NextRequest) {
 			internalUserId,
 			body.sessionId,
 			lastUserMessage.slice(0, 80),
+			body.projectId,
 		);
 		let providerMessages: ChatMessage[] = [...body.messages];
 

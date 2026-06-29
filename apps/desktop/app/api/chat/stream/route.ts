@@ -195,6 +195,7 @@ export async function POST(request: NextRequest) {
 			internalUserId,
 			body.sessionId,
 			lastUserMessage.slice(0, 80),
+			body.projectId,
 		);
 
 		// ── Store user message (before streaming) ────────────────────────
