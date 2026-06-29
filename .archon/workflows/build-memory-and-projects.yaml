@@ -1,0 +1,49 @@
+name: build-memory-and-projects
+description: >
+  Build Claude-style cross-session memory, chat search, and projects system
+  for the Flow chat app. Research → implement memory → implement projects → verify.
+model: sonnet
+nodes:
+  - id: research-design
+    command: research-memory
+    label: "Research & Design"
+
+  - id: build-memory-system
+    command: build-memory-system
+    label: "Implement Cross-Session Memory"
+    depends_on:
+      - research-design
+
+  - id: build-projects
+    command: build-projects
+    label: "Implement Projects System"
+    depends_on:
+      - research-design
+
+  - id: final-check
+    prompt: |
+      You are verifying the Flow memory and projects implementation in $ARTIFACTS_DIR/flow/.
+
+      Read the design doc: $ARTIFACTS_DIR/memory-design.md
+
+      Run verification:
+      ```bash
+      cd $ARTIFACTS_DIR/flow
+      npx tsc --noEmit 2>&1
+      npx next build 2>&1
+      ```
+
+      If there are TypeScript errors, fix them one by one — don't stop after the first error.
+      If next build fails, fix the issue and rebuild.
+
+      Rules:
+      - Do NOT add any mock, fake, or stub implementations.
+      - Every function must have a real implementation.
+      - No TODO comments or placeholders.
+      - Fix real bugs, don't paper over them.
+
+      When both pass, create a summary of what was built and end with "PASS".
+    model: sonnet
+    depends_on:
+      - build-memory-system
+      - build-projects
